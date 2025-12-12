@@ -130,7 +130,6 @@ dmypy.json
 
 # Data
 data/
-results/
 *.parquet
 *.csv
 *.xlsx
