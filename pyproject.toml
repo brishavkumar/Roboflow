@@ -1,0 +1,15 @@
+[project]
+name = "roboflow-railway-simulation"
+version = "0.1.0"
+description = "AI-based Decision Support System for Indian Railways"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy",
+    "pandas",
+    "stable-baselines3",
+    "shimmy>=2.0",
+    "gymnasium",
+    "simpy",
+    "matplotlib"
+]
+
