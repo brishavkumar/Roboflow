@@ -26,7 +26,7 @@ For a detailed breakdown of why we use **Reinforcement Learning (PPO)** instead 
 
 ### Prerequisites
 
-- Python 3.8+
+- Python 3.11+
 - [List other dependencies here, e.g., NumPy, Pandas, SimPy]
 
 ### Installation
