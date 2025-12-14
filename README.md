@@ -118,4 +118,70 @@ For a typical Railway RL environment (e.g., using PPO or DQN):
   - `raw/` & `processed/`: Simulation datasets.
 - **notebooks/**: Experiments and analysis.
 - **tests/**: Unit and integration tests.
-- **results/**: Logs and metric outputs.
+- results/**: Logs and metric outputs.
+
+## 5. Explainable AI (XAI) Architecture
+**Goal:** Use Fine-Tuned LLMs to provide human-readable explanations for the *decisions made by the RL Core*, without involving them in the critical control loop.
+
+### 5.1 The "Two-Brain" System
+We separate **Control** (High Precision, Low Latency) from **Explanation** (High Context, Natural Language).
+
+```mermaid
+graph TD
+    subgraph "Core Control Loop (Safety Critical)"
+        A[State: Train Positions, Signals] --> B(Feature Extractor)
+        B --> C{RL Agent / MILP Solver}
+        C -->|Action Command| D[Switch Track / Signal Change]
+        D --> E[Digital Twin Environment]
+    end
+
+    subgraph "XAI Layer (Human Co-Pilot)"
+        C -.->|Action + Context| F[Context Engine]
+        A -.->|State Data| F
+        F -->|Structured Prompt| G[Fine-Tuned LLM]
+        G -->|Natural Language Explanation| H("Why did you do that?")
+    end
+```
+
+### 5.2 Layer Implementation
+#### Layer 1: The Core (The Brain)
+*   **Role**: Makes the actual decision.
+*   **Tech**: Stable-Baselines3 (PPO) + Google OR-Tools.
+*   **Output**: Numerical Action (e.g., `Action_ID: 4` -> "Switch Train 105 to Loop Line").
+*   **Latency**: < 50ms.
+
+#### Layer 2: The Context Engine (The Translator)
+*   **Role**: Converts the "black box" numerical state into a linguistic context.
+*   **Process**:
+    *   Takes `Action_ID: 4`.
+    *   Queries `Knowledge_Base`: "What implies Action 4?" -> "Loop Line entry".
+    *   Queries `State`: "Why?" -> "Train 105 is slower than Train 202 approaching behind".
+*   **Output JSON**:
+    ```json
+    {
+      "action": "Switch to Loop Line",
+      "subject": "Train 105 (Goods)",
+      "conflicts": ["Train 202 (Vande Bharat) approaching on Main Line"],
+      "rule_ref": "G&SR Rule 3.4(b) - Priority Overtaking"
+    }
+    ```
+
+#### Layer 3: The Explainer (The Voice)
+*   **Role**: Generates the final user-facing text.
+*   **Tech**: **Fine-Tuned Llama-2-7B** or **Mistral-7B**.
+*   **Input**: The JSON from Layer 2.
+*   **Prompt**:
+    > "You are a Senior Section Controller. Explain why Train 105 was moved to the Loop Line based on the provided context."
+*   **Output**:
+    > "I moved the Goods Train (105) to the loop line to allow the higher-priority Vande Bharat (202) to pass. Keeping 105 on the main line would have caused a 4-minute delay to 202."
+
+### 5.3 Fine-Tuning Strategy
+We do not use a "General Intelligence" model; we create a **Task-Specific Specialist**.
+
+*   **Model**: Llama-2-7b-chat (Quantized to 4-bit for speed).
+*   **Dataset Source**:
+    1.  **Rule Logs**: Manually crafted pairs of (Situation -> Rule citations).
+    2.  **Controller Commentaries**: Recorded reasons from human controllers (e.g., "Stopped here because signal was red").
+    3.  **RL Value Function**: Validating *why* a state has high value (e.g., "High reward expected because conflict avoided").
+*   **Training Method**: QLoRA (scarcity of compute).
+*   **Objective**: Maximize factual consistency with the JSON input (reduce hallucinations).
