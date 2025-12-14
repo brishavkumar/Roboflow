@@ -128,18 +128,28 @@ We separate **Control** (High Precision, Low Latency) from **Explanation** (High
 
 ```mermaid
 graph TD
-    subgraph "Core Control Loop (Safety Critical)"
-        A[State: Train Positions, Signals] --> B(Feature Extractor)
-        B --> C{RL Agent / MILP Solver}
-        C -->|Action Command| D[Switch Track / Signal Change]
-        D --> E[Digital Twin Environment]
+    subgraph "Perception Layer"
+        A[Real-Time State: Signals, Track Occupancy] --> B(Graph Neural Network / Feature Extractor)
+        Static[Static Constraints: G&SR Rules, Gradients] --> B
     end
 
-    subgraph "XAI Layer (Human Co-Pilot)"
-        C -.->|Action + Context| F[Context Engine]
-        A -.->|State Data| F
-        F -->|Structured Prompt| G[Fine-Tuned LLM]
-        G -->|Natural Language Explanation| H("Why did you do that?")
+    subgraph "Decision Core (Hybrid Architecture)"
+        B --> C{RL Agent <br/> Policy Network}
+        C -->|Proposed Action Logits| D[Action Masking Layer]
+        Static -->|Valid Moves| D
+        D -->|Safe Action| E[Environment / Digital Twin]
+    end
+
+    subgraph "Safety Shield (The 'Brake')"
+        E -.->|Verify Critical Moves| F[MILP Solver / Constraint Checker]
+        F -->|Override if Unsafe| E
+    end
+
+    subgraph "XAI Co-Pilot"
+        D -.->|Selected Action| G[Context Engine]
+        A -.->|State Context| G
+        G -->|Structured Prompt w/ Counterfactuals| H[LLM Explainer]
+        H -->|Rationale: 'Held train to prevent deadlock'| I[Controller Dashboard]
     end
 ```
 
